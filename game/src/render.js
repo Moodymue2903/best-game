@@ -71,7 +71,11 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(0,0,0,0.35)';
     context.lineWidth = 2;
     context.stroke();
-    text(ing.label[0], x, y + r * 0.38, Math.round(r * 1.1), '#1e1a17', 'center', 'middle');
+    // The mark is a distinct short label, not the first letter: Prawn (Pr, coral)
+    // and Pepper (Pe, teal) would otherwise both read as P.
+    const mark = ing.mark || ing.label[0];
+    const size = mark.length > 1 ? Math.round(r * 0.72) : Math.round(r * 1.1);
+    text(mark, x, y + r * 0.38, size, '#1e1a17', 'center', 'middle');
   }
 
   function face(x, y, r, color, seed) {
@@ -104,6 +108,15 @@ export function createRenderer(canvas) {
     g.addColorStop(1, '#1e1a17');
     context.fillStyle = g;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
+    // Warm lantern/grill light: a soft radial bloom over the dark charcoal so the
+    // stall reads as lit by its own coals. It sits behind every panel and the HUD,
+    // so it warms the frame without ever covering text.
+    const bloom = context.createRadialGradient(FIELD.width / 2, 330, 60, FIELD.width / 2, 330, 720);
+    bloom.addColorStop(0, 'rgba(255,107,44,0.14)');
+    bloom.addColorStop(0.55, 'rgba(255,140,66,0.06)');
+    bloom.addColorStop(1, 'rgba(255,107,44,0)');
+    context.fillStyle = bloom;
+    context.fillRect(0, 0, FIELD.width, FIELD.height);
     // String lights across the top, below the HUD.
     for (let i = 0; i < 14; i += 1) {
       const x = 60 + i * 86;
@@ -126,14 +139,16 @@ export function createRenderer(canvas) {
         context.stroke();
       }
     } else if (state.night === 3) {
-      context.strokeStyle = 'rgba(174,194,255,0.25)';
-      context.lineWidth = 2;
-      for (let i = 0; i < 26; i += 1) {
+      // Rain on night 3: thick, bright, slanted streaks — clearly visible in the
+      // dark gaps between panels, not faint hairlines.
+      context.strokeStyle = 'rgba(190,210,255,0.55)';
+      context.lineWidth = 3;
+      for (let i = 0; i < 44; i += 1) {
         const x = (i * 97 + 40) % 1280;
         const y = (state.nightElapsed * 420 + i * 53) % 720;
         context.beginPath();
         context.moveTo(x, y);
-        context.lineTo(x - 6, y + 18);
+        context.lineTo(x - 8, y + 26);
         context.stroke();
       }
     }
@@ -177,26 +192,40 @@ export function createRenderer(canvas) {
         context.fill();
       }
       text(`${Math.ceil(cust.patience)}s`, barX + barW + 6, barY + 7, 16, PALETTE.muted, 'left', 'middle');
-      // Ticket: the recipe icons they want, one icon per ingredient, checked off as served.
+      // Ticket: the recipe icons they want, one icon per ingredient, checked off
+      // as served. A Family orders TWO skewers: a gold "x2" chip up front and a
+      // wider gap between the two orders' icons, so four circles never read as
+      // one impossible 4-ingredient skewer. Icons shrink for a multi-order
+      // ticket so even two 3-ingredient orders fit the card.
       let tx = x + 76;
       const ty = y + 86;
+      const multi = cust.orders.length > 1;
+      const iconR = multi ? 11 : 13;
+      const iconStep = multi ? 24 : 30;
+      if (multi) {
+        context.fillStyle = PALETTE.gold;
+        roundRect(tx, ty - 11, 30, 22, 6);
+        context.fill();
+        text('x2', tx + 15, ty + 1, 15, '#1e1a17', 'center', 'middle');
+        tx += 38;
+      }
       for (let o = 0; o < cust.orders.length; o += 1) {
         const recipe = recipeById(cust.orders[o]);
         if (!recipe) continue;
         for (const ing of recipe.needs) {
-          ingredientIcon(ing, tx, ty, 13);
-          tx += 30;
+          ingredientIcon(ing, tx, ty, iconR);
+          tx += iconStep;
         }
         if (cust.served[o]) {
           context.strokeStyle = PALETTE.good;
           context.lineWidth = 4;
           context.beginPath();
-          context.moveTo(tx - 26, ty);
-          context.lineTo(tx - 18, ty + 9);
+          context.moveTo(tx - iconStep + 4, ty);
+          context.lineTo(tx - iconStep + 12, ty + 9);
           context.lineTo(tx - 2, ty - 11);
           context.stroke();
         }
-        tx += 8;
+        tx += multi ? 16 : 8;
       }
       if (cust.orders.length === 1) {
         const recipe = recipeById(cust.orders[0]);
@@ -233,6 +262,14 @@ export function createRenderer(canvas) {
         text('empty', r.x + r.w / 2, r.y + r.h / 2, 16, 'rgba(255,243,214,0.3)', 'center', 'middle');
         continue;
       }
+      // The coals under a cooking skewer burn brighter: a warm radial under-glow
+      // behind the skewer, strongest at the slot's foot.
+      const underGlow = context.createRadialGradient(r.x + r.w / 2, r.y + r.h - 10, 4, r.x + r.w / 2, r.y + r.h - 10, r.w * 0.62);
+      underGlow.addColorStop(0, 'rgba(255,107,44,0.34)');
+      underGlow.addColorStop(0.6, 'rgba(255,140,66,0.14)');
+      underGlow.addColorStop(1, 'rgba(255,140,66,0)');
+      context.fillStyle = underGlow;
+      context.fillRect(r.x, r.y, r.w, r.h);
       const recipe = recipeById(slot.recipeId);
       // The skewer: a stick with the ingredient blobs on it.
       const cy = r.y + 52;
@@ -263,6 +300,31 @@ export function createRenderer(canvas) {
         roundRect(barX, barY, Math.max(6, barW * frac), 12, 6);
         context.fill();
       }
+      // Smoke and sparks rising off the cooking skewer. Positions ride on
+      // nightElapsed and the slot index, so a staged screenshot is deterministic.
+      // Drawn before the labels, so READY / BURNT text paints over the wisps.
+      const t = state.nightElapsed;
+      for (let k = 0; k < 3; k += 1) {
+        const rise = (t * 14 + i * 37 + k * 29) % 46;
+        const px = (r.x + r.w / 2) + Math.sin(t * 1.3 + i * 2 + k * 2.4) * 10 + (k - 1) * 12;
+        const py = cy - 18 - rise;
+        context.globalAlpha = 0.10 + 0.05 * Math.sin(t + k);
+        context.fillStyle = '#cfc4b4';
+        context.beginPath();
+        context.arc(px, py, 5 + k * 1.6, 0, Math.PI * 2);
+        context.fill();
+      }
+      for (let k = 0; k < 3; k += 1) {
+        const rise = (t * 26 + i * 53 + k * 31) % 40;
+        const px = (r.x + r.w / 2) + Math.sin(t * 2.1 + i * 3 + k * 1.7) * 14;
+        const py = cy - 10 - rise;
+        context.globalAlpha = 0.55 + 0.25 * Math.sin(t * 3 + k * 2);
+        context.fillStyle = PALETTE.gold;
+        context.beginPath();
+        context.arc(px, py, 2, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.globalAlpha = 1;
       text(recipe ? recipe.name : '', r.x + r.w / 2, r.y + 124, 15, PALETTE.muted, 'center', 'middle');
       if (isBurnt(slot)) {
         text('BURNT — click to toss', r.x + r.w / 2, r.y + 22, 15, PALETTE.danger, 'center', 'middle');
@@ -282,6 +344,20 @@ export function createRenderer(canvas) {
       context.fillStyle = glow > 0.5 ? PALETTE.coalHot : '#5a4034';
       context.beginPath();
       context.arc(cx, coalY + 16, 7 + glow * 4, 0, Math.PI * 2);
+      context.fill();
+    }
+    // The coals directly under a cooking skewer flare: a warm halo on the bed
+    // beneath each active slot, so the eye reads which slots are live.
+    for (let i = 0; i < state.grill.slots.length; i += 1) {
+      if (!state.grill.slots[i].active) continue;
+      const r = rects[i];
+      const flare = context.createRadialGradient(r.x + r.w / 2, coalY + 16, 4, r.x + r.w / 2, coalY + 16, 56);
+      flare.addColorStop(0, 'rgba(255,140,66,0.5)');
+      flare.addColorStop(0.6, 'rgba(255,107,44,0.18)');
+      flare.addColorStop(1, 'rgba(255,107,44,0)');
+      context.fillStyle = flare;
+      context.beginPath();
+      context.arc(r.x + r.w / 2, coalY + 16, 56, 0, Math.PI * 2);
       context.fill();
     }
   }
@@ -441,9 +517,12 @@ export function createRenderer(canvas) {
   function drawOver(state, best) {
     drawBackdrop(state);
     const won = state.won;
-    const title = won ? 'FESTIVAL COMPLETE!' : 'THE STALL GOES DARK';
+    // The verdict is written out in words, as the top entries do: YOU WIN! /
+    // YOU LOSE! is the title, the festival line keeps the flavour.
+    const title = won ? 'YOU WIN!' : 'YOU LOSE!';
     const lines = won
       ? [
+          'FESTIVAL COMPLETE!',
           `You served the whole festival — ${state.totalServed} orders, ${state.coins} coins`,
           `Best combo x${state.bestCombo}  •  Perfect serves ${state.stats.perfect}  •  Burnt ${state.stats.burnt}`,
           `Walkaways ${state.walkaways}/5`,
@@ -451,6 +530,7 @@ export function createRenderer(canvas) {
           `SCORE ${state.coins}   •   BEST ${Math.max(best, state.coins)}`,
         ]
       : [
+          'THE STALL GOES DARK',
           state.loseReason,
           `Orders served ${state.totalServed}  •  Coins ${state.coins}  •  Best combo x${state.bestCombo}`,
           `You reached Night ${state.night}/3`,

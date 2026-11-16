@@ -1,6 +1,9 @@
-// Every tuning number, colour, recipe and layout rect in one place.
-// The playfield is a fixed 1280x720 logical area; the renderer scales it to the
-// window, so no rule below depends on the screen size.
+// SKEWERFEST rules in one place: win by serving the night's orders before
+// closing (under 5 walkaways); golden window 50-90%, perfect 60-80% = 1.5x;
+// wind Night 2 and rain Night 3 decay the heat; one upgrade between nights.
+// Every tuning number, colour, recipe and layout rect is here. The playfield
+// is a fixed 1280x720 logical area; the renderer scales it to the window, so
+// no rule below depends on the screen size.
 export const FIELD = { width: 1280, height: 720 };
 
 /** The simulation's fixed step, in seconds: 60 updates a second. */
@@ -20,13 +23,15 @@ export const BASE_GRILL_SLOTS = 5;
 export const MAX_GRILL_SLOTS = 7;
 export const MAX_HAND = 3;
 
-/** Ingredients. Each has a colour, a short label and a key. */
+/** Ingredients. Each has a colour, a short label and a key. `mark` is the short
+ * text drawn inside the ingredient's circle: Prawn and Pepper share the initial
+ * P, so they carry distinct two-letter marks (Pr / Pe) instead of first letters. */
 export const INGREDIENTS = [
-  { id: 'chicken', label: 'Chicken', key: '1', color: '#f4a259' },
-  { id: 'prawn', label: 'Prawn', key: '2', color: '#ff7f7f' },
-  { id: 'mushroom', label: 'Mushroom', key: '3', color: '#d9c7a7' },
-  { id: 'pepper', label: 'Pepper', key: '4', color: '#2ec4a6' },
-  { id: 'tofu', label: 'Tofu', key: '5', color: '#fff3d6' },
+  { id: 'chicken', label: 'Chicken', key: '1', color: '#f4a259', mark: 'C' },
+  { id: 'prawn', label: 'Prawn', key: '2', color: '#ff7f7f', mark: 'Pr' },
+  { id: 'mushroom', label: 'Mushroom', key: '3', color: '#d9c7a7', mark: 'M' },
+  { id: 'pepper', label: 'Pepper', key: '4', color: '#2ec4a6', mark: 'Pe' },
+  { id: 'tofu', label: 'Tofu', key: '5', color: '#fff3d6', mark: 'T' },
 ];
 
 /** Recipes: an exact ingredient set (order does not matter), a coin value and a cook factor. */

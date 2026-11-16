@@ -1,6 +1,20 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s
-// steps (several in a slow frame, none in a fast one), and the renderer paints what is
-// there. The game moves between five screens: title, play, paused, shop and over.
+// SKEWERFEST — grill skewers over live coals and serve the festival crowd.
+// WIN: serve the night's orders before closing, keeping walkaways under 5.
+// LOSE: 5 hungry customers storm off, or closing time comes first.
+// Controls: click ingredient bins to build a skewer (up to 3 ingredients),
+// click a grill slot to place it, click a golden skewer then a customer to
+// serve. SPACE fans the coals. P pauses, R restarts, M mutes.
+// Perfect window: serve at 60-80% doneness for 1.5x coins (golden 50-90%,
+// burnt past 95% is tossed). Combo grows to x5 with each serve in a row.
+// Weather decays the heat: wind on Night 2, rain on Night 3 — fan to stoke.
+// Between nights the shop offers one upgrade: Bigger Grill, Brass Fan,
+// Patience Charm, Spice Kit or Quick Coals. Customers: Runner, Regular,
+// Family (2 orders) and the Critic on Night 3 (perfect serves only).
+//
+// Boot and the one loop: input is read every frame, the world advances in fixed
+// 1/60 s steps (several in a slow frame, none in a fast one), and the renderer
+// paints what is there. The game moves between five screens: title, play,
+// paused, shop and over.
 //
 // ?seed=N fixes the run. ?shot=start|play|rush|end (with &seed=N) stages that scene
 // instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.

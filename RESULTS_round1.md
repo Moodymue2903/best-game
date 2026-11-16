@@ -71,13 +71,14 @@
   vendor/makefun-game.ts is the kit's copy, unchanged.
 
 ## Screenshots (4, 1280x720, JPEG q85, all ≤256 KiB)
-- 01-play.jpg (cover, 115,205 B): Night 2 rush — 4 skewers cooking (one READY), 3 customers
-  with patience bars + tickets, COMBO x5, heat 64%, WIN/LOSE in the grill header.
-- 02-title.jpg (77,031 B): big gold SKEWERFEST, one-sentence goal, WIN/LOSE lines, controls,
+- 01-rush.jpg (cover, 119,494 B): Night 3 rain + Critic (14s), 3 skewers (incl. Festival Mixed),
+  PERFECT! +41 toast, 13/16 orders, COMBO x5. The strongest frame: rain, Critic, a perfect
+  serve, Night 3, combo x5 — so it is the cover (the contact sheet puts the first shot large).
+- 02-play.jpg (117,996 B): Night 2 rush — 4 skewers cooking (one READY Surf & Turf), 3 customers
+  with patience bars + tickets (incl. a Family x2), COMBO x5, heat 64%, WIN/LOSE in the grill header.
+- 03-title.jpg (77,128 B): big gold SKEWERFEST, one-sentence goal, WIN/LOSE lines, controls,
   CLICK TO BEGIN.
-- 03-rush.jpg (115,784 B): Night 3 rain + Critic (14s), 3 skewers (incl. Festival Mixed),
-  PERFECT! +41 toast, 13/16 orders.
-- 04-results.jpg (41,213 B): WIN — "FESTIVAL COMPLETE!", 36 orders, 1956 coins, best combo x5,
+- 04-results.jpg (42,308 B): YOU WIN! — "FESTIVAL COMPLETE!", 36 orders, 1766 coins, best combo x5,
   perfect serves 36, burnt 0, walkaways 0/5.
 - All staged deterministically via ?shot= + seed=1 (autopilot plays the real rules) and
   captured in headless Chromium (playwright-core, installed for this task).
@@ -91,10 +92,12 @@
   (header showed "Serving — click a customer!"), fan raised heat 70%→79%, wrong-recipe serve
   correctly refused (customer wanted Prawn, I built Chicken). Zero console/page errors.
   Live screenshot saved to /tmp/playtest-live.jpg.
-- Autopilot full game (via ?shot=end&seed=1): WON — 36 orders, 1956 coins, best combo x5,
+- Autopilot full game (via ?shot=end&seed=1): WON — 36 orders, 1766 coins, best combo x5,
   perfect serves 36/36, burnt 0, walkaways 0/5. The game is winnable and the loop is sound.
   (An earlier autopilot version won with 4/5 walkaways; the perfect-window + busy-grill
-  fixes made it 0/5.)
+  fixes made it 0/5.) NOTE: an earlier draft of this file said 1956 coins — that was
+  wrong. The staged results screenshot (04-results.jpg) shows 1766, and the re-run after
+  the Round 1 fixes reproduces 1766 exactly; 1766 is used consistently everywhere now.
 - main.ts: `MAKEFUN_OUTPUT_DIR=out node main.ts` — exit 0, dossier.json 534,195 B
   (text 65,793 B, well under the 163,840 cap; 12 source files, 65,028 B).
 - `makefun check --kit best-game-01-kit --repo best-game --worktree` (2026-11-16T19:07Z):
@@ -124,6 +127,53 @@
   regulars, the distinct vermilion/jade/cream palette, and the shrink test (the cover reads
   clearly at 1280x720 and the contact sheet shrinks it further — the largest text and the
   HUD numerals survive).
+
+## Round 1 fixes (3-model audit feedback, applied 2026-11-16 ~19:15Z)
+- Audit: DeepSeek + Gemini (GLM still pending at fix time). Both: the game is complete and
+  readable with a strong HUD/title screen, but it reads as "another diner game" /
+  "spreadsheet/wireframe aesthetic" — ordinary, not distinctive. Win rate below the builder's
+  65-78%: DeepSeek 62-70% as-is (top-10 7-10%), Gemini 55-68% (top-10 ~10-15%). Top-20 is
+  the honest ceiling as-is. The #1 fix (both models): presentation, NOT new features.
+- 1. Coin discrepancy (Gemini catch, verified from the image): the results screenshot showed
+  1766 coins, but this file said 1956. Fixed: 1766 is now used consistently everywhere the
+  staged run is stated (this file, both mentions). The screenshot is the ground truth for
+  what the judge sees. Re-staging after the fixes reproduces 1766 exactly.
+- 2. Cover swapped: 03-rush.jpg (rain, Critic, PERFECT +41, Night 3, combo x5) is now the
+  cover (01-rush.jpg); the old 01-play is now 02-play, the title is 03-title, results stay
+  04-results. shots.json reordered; all 4 re-captured deterministically (seed=1).
+- 3. Visual atmosphere (the "light" fix — 4 of the top 5 entries involve light): glowing
+  radial coal embers under active grill slots (under-glow in the slot + flare on the coal
+  bed), rising smoke puffs and gold sparks above cooking skewers, and a warm radial
+  lantern/grill light bloom across the dark charcoal background. Night 3 rain is now thick,
+  bright, slanted streaks (44 at alpha 0.55, width 3) instead of faint hairlines. All of it
+  is drawn behind the panels/HUD, so nothing obscures the HUD, tickets or grill.
+- 4. Family-order clarity (Gemini catch): the Family ticket now shows a gold "x2" chip and
+  groups its icons into two pairs with a wider gap, so four circles never read as one
+  impossible 4-ingredient skewer. Prawn and Pepper no longer share the letter P: ingredient
+  marks are now C / Pr / M / Pe / T (config.js `mark`, render.js uses it), so Pr (coral)
+  and Pe (teal) cannot be confused.
+- 5. Source outline / dossier: the leading comment of game/src/main.js (the first source
+  file the judge's outline reads) now leads with win/lose, controls, perfect window,
+  weather decay, upgrade shop, combo and customer types — not implementation notes.
+  (main.ts itself is not in the dossier text — only game/ sources are — so the game
+  sources' headers are the lever; config.js got the same one-line lead.)
+- 6. Results screen: the win title is now "YOU WIN!" with "FESTIVAL COMPLETE!" as the first
+  line; the lose title is "YOU LOSE!" with "THE STALL GOES DARK" as the first line.
+- No new gameplay features. No rule, recipe, night or economy change. Palette unchanged.
+  The loop is identical: the autopilot still wins with 36 orders, 1766 coins, best combo x5.
+- Re-test after the fixes (2026-11-16 ~19:16Z): `node --check` on all 11 game/src/*.js — all
+  OK. Autopilot full game (via ?shot=end&seed=1): WON — 36 orders, 1766 coins, best combo
+  x5, perfect 36/36, burnt 0, walkaways 0/5. All 4 screenshots re-captured (1280x720,
+  119,494 / 117,996 / 77,128 / 42,308 B — all ≤256 KiB) and visually verified: rain clearly
+  visible, x2 chip + grouped Family icons, Pr/Pe marks, smoke + coal flares, YOU WIN!.
+  main.ts (`MAKEFUN_OUTPUT_DIR=out node main.ts`): exit 0, dossier text 71,630 B (cap
+  163,840), and the new main.js game-facts header is in the dossier text. Live play-test
+  (`node playtest.mjs`): title "Skewerfest", click to start → "Playing. Night 1.", zero
+  console/page errors. `makefun check --kit best-game-01-kit/best-game-01-kit --repo
+  best-game --worktree` (2026-11-16T19:17Z): 4 passed (competition_open, snapshot 24
+  files/511,572 B, license_osi MIT, entrypoint main.ts/node22), 1 failed
+  (transcripts_present — expected, no bundle yet; the parent builds it at submit time),
+  14 skipped, 5 checked at submission. Same shape as round 1.
 
 ## What is NOT done (for the parent)
 - No GitHub repo created, no push, no bundle, no submit (per the task's scope).
