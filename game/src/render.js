@@ -1,7 +1,7 @@
 // Drawing only: the run's state and the current screen in, pixels out.
 // The 1280x720 playfield is scaled to fit the window and centred, the margin filled
 // with the backdrop colour. Flat shapes and canvas text for the HUD and the panels.
-import { DONENESS, FIELD, FONT, INGREDIENTS, LAYOUT, NIGHTS, PALETTE, grillSlotRects } from './config.js';
+import { DONENESS, FIELD, FONT, INGREDIENTS, LAYOUT, MAX_WALKAWAYS, NIGHTS, PALETTE, grillSlotRects } from './config.js';
 import { ingredientById, recipeById } from './orders.js';
 import { isBurnt, isGolden } from './grill.js';
 import { handRecipe } from './state.js';
@@ -101,7 +101,7 @@ export function createRenderer(canvas) {
     context.stroke();
   }
 
-  function drawBackdrop(state) {
+  function drawBackdrop(state, hero) {
     // Warm dark night-market backdrop with a soft glow and string lights.
     const g = context.createLinearGradient(0, 0, 0, FIELD.height);
     g.addColorStop(0, '#241b16');
@@ -117,14 +117,72 @@ export function createRenderer(canvas) {
     bloom.addColorStop(1, 'rgba(255,107,44,0)');
     context.fillStyle = bloom;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
-    // String lights across the top, below the HUD.
-    for (let i = 0; i < 14; i += 1) {
-      const x = 60 + i * 86;
-      const y = 62 + Math.sin(i * 1.3) * 4;
-      context.fillStyle = i % 3 === 0 ? PALETTE.gold : i % 3 === 1 ? PALETTE.ember : PALETTE.jade;
-      context.beginPath();
-      context.arc(x, y, 4, 0, Math.PI * 2);
-      context.fill();
+    if (hero) {
+      // Hero cover: the grill is the warm focal point and the top of the frame
+      // glows with lantern light, so the festival mood (not the HUD) carries
+      // the cover. Both sit behind every panel, as the bloom does.
+      const grillGlow = context.createRadialGradient(FIELD.width / 2, 306, 40, FIELD.width / 2, 306, 620);
+      grillGlow.addColorStop(0, 'rgba(255,107,44,0.20)');
+      grillGlow.addColorStop(0.6, 'rgba(255,140,66,0.08)');
+      grillGlow.addColorStop(1, 'rgba(255,107,44,0)');
+      context.fillStyle = grillGlow;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+      const topGlow = context.createRadialGradient(FIELD.width / 2, 100, 20, FIELD.width / 2, 100, 520);
+      topGlow.addColorStop(0, 'rgba(255,197,61,0.14)');
+      topGlow.addColorStop(1, 'rgba(255,197,61,0)');
+      context.fillStyle = topGlow;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+    }
+    if (hero) {
+      // Hero frieze, in the strip the compressed HUD frees (y 36-64): the
+      // festival crowd behind the stall counter — dark heads peeking over the
+      // customer row, at staggered heights so the row reads as a crowd rather
+      // than a dotted border — with paper lanterns hanging above them.
+      // Deterministic (index-based), so the staged cover is the same every
+      // capture. The string lights are skipped here; the lanterns are the lights.
+      context.fillStyle = '#151009';
+      for (let i = 0; i < 24; i += 1) {
+        const x = 30 + i * 52;
+        const r = 13 + (i % 3) * 2;
+        const y = 54 + (i % 2) * 4;
+        context.beginPath();
+        context.arc(x, y, r, 0, Math.PI * 2);
+        context.fill();
+      }
+      const lanternX = [90, 320, 640, 960, 1190];
+      for (let i = 0; i < lanternX.length; i += 1) {
+        const x = lanternX[i];
+        const glow = context.createRadialGradient(x, 52, 4, x, 52, 44);
+        glow.addColorStop(0, 'rgba(255,197,61,0.55)');
+        glow.addColorStop(1, 'rgba(255,197,61,0)');
+        context.fillStyle = glow;
+        context.beginPath();
+        context.arc(x, 52, 38, 0, Math.PI * 2);
+        context.fill();
+        context.strokeStyle = 'rgba(255,243,214,0.6)';
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(x, 36);
+        context.lineTo(x, 40);
+        context.stroke();
+        context.fillStyle = i % 2 === 0 ? PALETTE.gold : PALETTE.ember;
+        context.beginPath();
+        context.ellipse(x, 52, 13, 17, 0, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = '#8a5a20';
+        context.fillRect(x - 5, 33, 10, 4);
+        context.fillRect(x - 5, 67, 10, 4);
+      }
+    } else {
+      // String lights across the top, below the HUD.
+      for (let i = 0; i < 14; i += 1) {
+        const x = 60 + i * 86;
+        const y = 62 + Math.sin(i * 1.3) * 4;
+        context.fillStyle = i % 3 === 0 ? PALETTE.gold : i % 3 === 1 ? PALETTE.ember : PALETTE.jade;
+        context.beginPath();
+        context.arc(x, y, 4, 0, Math.PI * 2);
+        context.fill();
+      }
     }
     // Weather: wind streaks on night 2, rain on night 3.
     if (state.night === 2) {
@@ -154,8 +212,29 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawHud(state) {
+  function drawHud(state, hero) {
     const h = LAYOUT.hud;
+    if (hero) {
+      // Hero cover: a slim bar (36px, not 56). The win/lose stakes are the
+      // centrepiece, in big numbers a 2-second glance can parse — WIN 16 •
+      // LOSE 5 — instead of a dense small line in the grill header. The
+      // walkaway count moves to the grill header, so nothing is lost.
+      context.fillStyle = '#161210';
+      context.fillRect(h.x, h.y, h.w, 36);
+      text(`COINS ${state.coins}`, 24, 18, 20, PALETTE.gold, 'left', 'middle');
+      text(`NIGHT ${state.night}/3`, 200, 18, 20, PALETTE.text, 'left', 'middle');
+      text('WIN', 548, 18, 20, PALETTE.gold, 'center', 'middle');
+      text(String(state.ordersTarget), 596, 18, 30, PALETTE.gold, 'center', 'middle');
+      text('•', 640, 18, 20, PALETTE.muted, 'center', 'middle');
+      text('LOSE', 688, 18, 20, PALETTE.danger, 'center', 'middle');
+      text(String(MAX_WALKAWAYS), 740, 18, 30, PALETTE.danger, 'center', 'middle');
+      text(`ORDERS ${state.ordersServed}/${state.ordersTarget}`, 850, 18, 20, PALETTE.text, 'left', 'middle');
+      text(`CLOSING ${fmtTime(state.nightTime)}`, 1010, 18, 20, state.nightTime <= 15 ? PALETTE.danger : PALETTE.text, 'left', 'middle');
+      if (state.combo >= 2) {
+        text(`COMBO x${state.combo}`, 1256, 18, 20, PALETTE.gold, 'right', 'middle');
+      }
+      return;
+    }
     context.fillStyle = '#161210';
     context.fillRect(h.x, h.y, h.w, h.h);
     text(`COINS ${state.coins}`, 24, 36, 26, PALETTE.gold, 'left', 'middle');
@@ -169,14 +248,18 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawCustomers(state) {
+  function drawCustomers(state, hero) {
     const c = LAYOUT.customers;
     for (let i = 0; i < state.customers.list.length; i += 1) {
       const cust = state.customers.list[i];
       const x = c.x + i * (c.cardW + c.gap);
       const y = c.y;
-      panel(x, y, c.cardW, c.h, PALETTE.panel);
-      face(x + 40, y + 42, 26, cust.color, cust.faceSeed);
+      // Hero cover: the cards are slightly see-through, so the lantern glow and
+      // rain behind them show through, and the faces are bigger — the people,
+      // not the panels, are the subject.
+      panel(x, y, c.cardW, c.h, hero ? 'rgba(42,33,28,0.88)' : PALETTE.panel);
+      if (hero) face(x + 40, y + 46, 32, cust.color, cust.faceSeed);
+      else face(x + 40, y + 42, 26, cust.color, cust.faceSeed);
       text(cust.label, x + 76, y + 30, 22, PALETTE.text, 'left', 'middle');
       // Patience bar: wide, colour-coded, drains as they wait.
       const frac = Math.max(0, cust.patience / cust.patienceMax);
@@ -243,11 +326,17 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawGrill(state) {
+  function drawGrill(state, hero) {
     const g = LAYOUT.grill;
     panel(g.x, g.y, g.w, g.h, '#241a14');
     text('GRILL', g.x + 24, g.y + 20, 20, PALETTE.muted, 'left', 'middle');
-    text(state.serving ? 'Serving — click a customer!' : `WIN: ${state.ordersTarget} orders  •  LOSE: 5 walkaways`, g.x + g.w - 24, g.y + 20, 18, state.serving ? PALETTE.gold : PALETTE.muted, 'right', 'middle');
+    if (hero) {
+      // The WIN/LOSE stakes live in the slim hero HUD now; the grill header
+      // carries the walkaway count instead, so nothing is lost.
+      text(state.serving ? 'Serving — click a customer!' : `WALKAWAYS ${state.walkaways}/${MAX_WALKAWAYS}`, g.x + g.w - 24, g.y + 20, 18, state.serving ? PALETTE.gold : PALETTE.muted, 'right', 'middle');
+    } else {
+      text(state.serving ? 'Serving — click a customer!' : `WIN: ${state.ordersTarget} orders  •  LOSE: 5 walkaways`, g.x + g.w - 24, g.y + 20, 18, state.serving ? PALETTE.gold : PALETTE.muted, 'right', 'middle');
+    }
     const rects = grillSlotRects(state.grill.slots.length);
     for (let i = 0; i < state.grill.slots.length; i += 1) {
       const slot = state.grill.slots[i];
@@ -558,10 +647,14 @@ export function createRenderer(canvas) {
       drawOver(state, best);
       return;
     }
-    drawBackdrop(state);
-    drawHud(state);
-    drawCustomers(state);
-    drawGrill(state);
+    // The rush cover is staged with the hero composition (state.heroShot, set by
+    // shots.js): festival mood first, HUD compressed, WIN/LOSE prominent. The
+    // live game and the other shots never set it, so they render as before.
+    const hero = state.heroShot === true;
+    drawBackdrop(state, hero);
+    drawHud(state, hero);
+    drawCustomers(state, hero);
+    drawGrill(state, hero);
     drawHeat(state);
     drawBins(state);
     drawHand(state);

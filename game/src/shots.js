@@ -141,6 +141,10 @@ function playNight(state) {
  */
 export function stageShot(name, state) {
   startGame(state);
+  // The rush cover is staged with the hero composition (see render.js): the
+  // festival mood leads and the HUD is compressed. A presentation flag only —
+  // it changes no rule, and the live game never sets it.
+  state.heroShot = name === 'rush';
   if (name !== 'play' && name !== 'rush' && name !== 'end') {
     return { screen: 'title', best: 0 };
   }
